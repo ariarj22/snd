@@ -28,6 +28,7 @@ type Driver[T client] interface {
 // Adapter components for external sources.
 type Adapter struct {
 	CrudSQLite   *CrudSQLite
+	CrudPostgres *CrudPostgres
 	CrudPersist  *crud.Database
 	PokemonResty *resty.Client
 }
@@ -49,6 +50,12 @@ func (a *Adapter) UnSync() error {
 	if a.CrudSQLite != nil {
 		log.Info().Msg("CrudSQLite is closed")
 		if err := a.CrudSQLite.Disconnect(); err != nil {
+			errs = append(errs, err.Error())
+		}
+	}
+	if a.CrudPostgres != nil {
+		log.Info().Msg("CrudPostgres is closed")
+		if err := a.CrudPostgres.Disconnect(); err != nil {
 			errs = append(errs, err.Error())
 		}
 	}

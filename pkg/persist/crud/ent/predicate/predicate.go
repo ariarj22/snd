@@ -9,5 +9,8 @@ import (
 // Article is the predicate function for article builders.
 type Article func(*sql.Selector)
 
+// User is the predicate function for user builders.
+type User func(*sql.Selector)
+
 // Ymir is the predicate function for ymir builders.
 type Ymir func(*sql.Selector)

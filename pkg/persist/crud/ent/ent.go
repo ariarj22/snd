@@ -13,6 +13,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/kubuskotak/king/pkg/persist/crud/ent/article"
+	"github.com/kubuskotak/king/pkg/persist/crud/ent/user"
 	"github.com/kubuskotak/king/pkg/persist/crud/ent/ymir"
 )
 
@@ -75,6 +76,7 @@ func checkColumn(table, column string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
 			article.Table: article.ValidColumn,
+			user.Table:    user.ValidColumn,
 			ymir.Table:    ymir.ValidColumn,
 		})
 	})

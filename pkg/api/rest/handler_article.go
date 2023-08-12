@@ -28,9 +28,9 @@ type Article struct {
 }
 
 // WithArticleDatabase option function to assign on article.
-func WithArticleDatabase(adapter *adapters.CrudSQLite) ArticleOption {
+func WithArticleDatabase(adapter *adapters.CrudPostgres) ArticleOption {
 	return func(a *Article) {
-		a.Database = crud.Driver(crud.WithDriver(adapter.Client, dialect.SQLite))
+		a.Database = crud.Driver(crud.WithDriver(adapter.Client, dialect.Postgres))
 	}
 }
 

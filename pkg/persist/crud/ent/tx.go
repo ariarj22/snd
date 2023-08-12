@@ -14,6 +14,8 @@ type Tx struct {
 	config
 	// Article is the client for interacting with the Article builders.
 	Article *ArticleClient
+	// User is the client for interacting with the User builders.
+	User *UserClient
 	// Ymir is the client for interacting with the Ymir builders.
 	Ymir *YmirClient
 
@@ -148,6 +150,7 @@ func (tx *Tx) Client() *Client {
 
 func (tx *Tx) init() {
 	tx.Article = NewArticleClient(tx.config)
+	tx.User = NewUserClient(tx.config)
 	tx.Ymir = NewYmirClient(tx.config)
 }
 

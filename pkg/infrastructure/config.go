@@ -39,6 +39,13 @@ type Config struct {
 	CrudSQLite struct {
 		File string `yaml:"file" env:"CRUD_SQLITE_FILE" env-description:"database file"`
 	} `yaml:"CrudSQLite"`
+	CrudPostgres struct {
+		User     string `yaml:"user" env:"POSTGRES_USER" env-description:"postgres user"`
+		Password string `yaml:"password" env:"POSTGRES_PASSWORD" env-description:"postgres password"`
+		Host     string `yaml:"host" env:"POSTGRES_HOST" env-description:"postgres host"`
+		Port     string `yaml:"port" env:"POSTGRES_PORT" env-description:"postgres port"`
+		Database string `yaml:"database" env:"POSTGRES_DB" env-description:"postgres database"`
+	} `yaml:"CrudPostgres"`
 	PokemonResty struct {
 		URL string `yaml:"URL" env:"POKEMON_RESTY_URL" env-description:"api url"`
 	} `yaml:"PokemonResty"`

@@ -118,6 +118,12 @@ func (r *rootOptions) runServer(_ *cobra.Command, _ []string) error {
 	adaptor.Sync(
 		adapters.WithCrudSQLite(&adapters.CrudSQLite{
 			File: infrastructure.Envs.CrudSQLite.File}),
+		adapters.WithCrudPostgres(&adapters.CrudPostgres{
+			User: infrastructure.Envs.CrudPostgres.User,
+			Password: infrastructure.Envs.CrudPostgres.Password,
+			Host: infrastructure.Envs.CrudPostgres.Host,
+			Port: infrastructure.Envs.CrudPostgres.Port,
+			Database: infrastructure.Envs.CrudPostgres.Database}),
 		adapters.WithPokemonResty(&adapters.PokemonResty{
 			URL: infrastructure.Envs.PokemonResty.URL}),
 	) // adapters init
@@ -153,7 +159,10 @@ func (r *rootOptions) runServer(_ *cobra.Command, _ []string) error {
 				rest.WithPokemonUseCase(pokemonCase),
 			).Register(c)
 			rest.NewArticle(
-				rest.WithArticleDatabase(adaptor.CrudSQLite),
+				rest.WithArticleDatabase(adaptor.CrudPostgres),
+			).Register(c)
+			rest.NewUser(
+				rest.WithUserDatabase(adaptor.CrudPostgres),
 			).Register(c)
 			c.Mount("/api", c)
 			return c
