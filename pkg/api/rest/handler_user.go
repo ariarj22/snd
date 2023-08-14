@@ -65,6 +65,7 @@ func (a *User) Register(router chi.Router) {
 		r.Get("/", pkgRest.HandlerAdapter[ListUsersRequest](a.ListUsers).JSON)
 		r.Post("/register", pkgRest.HandlerAdapter[RegisterUserRequest](a.RegisterUser).JSON)
 		r.Post("/login", pkgRest.HandlerAdapter[LoginUserRequest](a.LoginUser).JSON)
+		r.Post("/logout", pkgRest.HandlerAdapter[LogoutUserRequest](a.LogoutUser).JSON)
 		r.Route("/{id:[0-9-]+}", func(id chi.Router) {
 			id.Get("/", pkgRest.HandlerAdapter[GetUserRequest](a.GetUser).JSON)
 			id.Put("/", pkgRest.HandlerAdapter[RegisterUserRequest](a.RegisterUser).JSON)
@@ -276,5 +277,49 @@ func (a *User) DeleteUser(w http.ResponseWriter, r *http.Request) (resp DeleteUs
 	}
 	return DeleteUserResponse{
 		Message: fmt.Sprintf("record deleted successfully: %d", request.ID),
+	}, nil
+}
+
+// LogoutUser [POST /logout] user endpoint func.
+func (a *User) LogoutUser(w http.ResponseWriter, r *http.Request) (resp LogoutUserResponse, err error) {
+	var (
+		_, span, l = pkgTracer.StartSpanLogTrace(r.Context(), "LogoutUser")
+	)
+	defer span.End()
+
+	// Check if the token exists
+	userID := "0"
+	tokenCookie, err := r.Cookie("token")
+	if err != nil {
+		if err == http.ErrNoCookie {
+			return resp, pkgRest.ErrUnauthorized(w, r, errors.New("unauthorized"))
+		}
+	}
+
+	token, _ := jwt.Parse(tokenCookie.Value, func(token *jwt.Token) (interface{}, error) {
+		jwtSecretKey := []byte(os.Getenv("JWT_SECRET_KEY"))
+		return jwtSecretKey, nil
+	})
+
+	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+		if userIDClaim, exists := claims["userID"]; exists {
+			if id, ok := userIDClaim.(float64); ok {
+				userID = fmt.Sprintf("%.0f", id)
+			}
+		}
+	}
+
+	// Remove the JWT token by setting an expired cookie
+	cookie := http.Cookie{
+		Name:     "token",
+		Value:    "",
+		Expires:  time.Now().Add(-time.Hour),
+		HttpOnly: true,
+	}
+	http.SetCookie(w, &cookie)
+	
+	l.Info().Str("UserID", userID).Msg("LogoutUser")
+	return LogoutUserResponse{
+		Message: "logout successful",
 	}, nil
 }

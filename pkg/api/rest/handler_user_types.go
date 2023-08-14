@@ -52,3 +52,13 @@ type DeleteUserRequest struct {
 type DeleteUserResponse struct {
 	Message string
 }
+
+// LogoutUserRequest Remove a token request.
+type LogoutUserRequest struct {
+	Token string
+}
+
+// LogoutUserResponse Remove a token response.
+type LogoutUserResponse struct {
+	Message string
+}
