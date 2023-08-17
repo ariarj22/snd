@@ -46,6 +46,11 @@ type Config struct {
 		Port     string `yaml:"port" env:"POSTGRES_PORT" env-description:"postgres port"`
 		Database string `yaml:"database" env:"POSTGRES_DB" env-description:"postgres database"`
 	} `yaml:"CrudPostgres"`
+	CrudMongoDB struct {
+		URI        string `json:"uri" env:"MONGODB_URI" env-description:"mongodb uri"`
+		Database   string `json:"database" env:"MONGODB_DB" env-description:"mongodb database"`
+		Collection string `json:"collection" env:"MONGODB_COLL" env-description:"mongodb collection"`
+	}
 	PokemonResty struct {
 		URL string `yaml:"URL" env:"POKEMON_RESTY_URL" env-description:"api url"`
 	} `yaml:"PokemonResty"`

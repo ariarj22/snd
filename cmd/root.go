@@ -124,6 +124,11 @@ func (r *rootOptions) runServer(_ *cobra.Command, _ []string) error {
 			Host: infrastructure.Envs.CrudPostgres.Host,
 			Port: infrastructure.Envs.CrudPostgres.Port,
 			Database: infrastructure.Envs.CrudPostgres.Database}),
+		adapters.WithCrudMongoDB(&adapters.CrudMongoDB{
+			URI: infrastructure.Envs.CrudMongoDB.URI,
+			Database: infrastructure.Envs.CrudMongoDB.Database,
+			Collection: infrastructure.Envs.CrudMongoDB.Collection,
+		}),
 		adapters.WithPokemonResty(&adapters.PokemonResty{
 			URL: infrastructure.Envs.PokemonResty.URL}),
 	) // adapters init

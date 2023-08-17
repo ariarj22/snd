@@ -10,12 +10,13 @@ import (
 	sqlEnt "entgo.io/ent/dialect/sql"
 	"github.com/go-resty/resty/v2"
 	"github.com/rs/zerolog/log"
+	"go.mongodb.org/mongo-driver/mongo"
 
 	"github.com/kubuskotak/king/pkg/persist/crud"
 )
 
 type client interface {
-	*sqlEnt.Driver | *http.Client | *resty.Client
+	*sqlEnt.Driver | *http.Client | *resty.Client | *mongo.Client
 }
 
 // Driver - interface adapter.
@@ -29,6 +30,7 @@ type Driver[T client] interface {
 type Adapter struct {
 	CrudSQLite   *CrudSQLite
 	CrudPostgres *CrudPostgres
+	CrudMongoDB *CrudMongoDB
 	CrudPersist  *crud.Database
 	PokemonResty *resty.Client
 }
@@ -56,6 +58,12 @@ func (a *Adapter) UnSync() error {
 	if a.CrudPostgres != nil {
 		log.Info().Msg("CrudPostgres is closed")
 		if err := a.CrudPostgres.Disconnect(); err != nil {
+			errs = append(errs, err.Error())
+		}
+	}
+	if a.CrudMongoDB != nil {
+		log.Info().Msg("CrudMongoDB is closed")
+		if err := a.CrudMongoDB.Disconnect(); err != nil {
 			errs = append(errs, err.Error())
 		}
 	}
