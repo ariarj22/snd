@@ -14,9 +14,12 @@ import (
 	"github.com/jinzhu/copier"
 	pkgRest "github.com/kubuskotak/asgard/rest"
 	pkgTracer "github.com/kubuskotak/asgard/tracer"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 
 	"github.com/kubuskotak/king/pkg/adapters"
 	"github.com/kubuskotak/king/pkg/entity"
+	"github.com/kubuskotak/king/pkg/infrastructure"
 	"github.com/kubuskotak/king/pkg/persist/crud"
 	"github.com/kubuskotak/king/pkg/persist/crud/ent"
 	"github.com/kubuskotak/king/pkg/persist/crud/ent/user"
@@ -28,12 +31,20 @@ type UserOption func(user *User)
 // User handler instance data.
 type User struct {
 	*crud.Database
+	*mongo.Client
 }
 
 // WithUserDatabase option function to assign on user.
 func WithUserDatabase(adapter *adapters.CrudPostgres) UserOption {
 	return func(a *User) {
 		a.Database = crud.Driver(crud.WithDriver(adapter.Client, dialect.Postgres))
+	}
+}
+
+// WithUserMongoDB option function to assign on user.
+func WithUserMongoDB(adapter *adapters.CrudMongoDB) UserOption {
+	return func(a *User) {
+		a.Client = adapter.Client
 	}
 }
 
@@ -140,20 +151,46 @@ func (a *User) RegisterUser(w http.ResponseWriter, r *http.Request) (resp Regist
 	}
 	//  upsert
 	var client = a.Database.User
+	database := a.Client.Database(infrastructure.Envs.CrudMongoDB.Database)
+	collection := database.Collection(infrastructure.Envs.CrudMongoDB.Collection)
 	if request.ID > 0 {
 		row, err = client.
 			UpdateOneID(request.ID).
 			SetEmail(request.Email).
 			SetPassword(request.Password).
 			Save(ctxSpan)
+		if err != nil {
+			return resp, pkgRest.ErrStatusConflict(w, r, a.Database.ConvertDBError("got an error", err))
+		}
+		err = collection.FindOne(ctxSpan, bson.M{"id": request.ID}).Decode(&artcl)
+		if err != nil {
+			_, err = collection.InsertOne(ctxSpan, bson.D{
+				{Key: "id", Value: row.ID},
+				{Key: "email", Value: request.Email},
+				{Key: "password", Value: request.Password},
+			})
+		} else {
+			_, err = collection.UpdateOne(ctxSpan, bson.M{"id": request.ID}, bson.M{"$set": bson.M{"email": request.Email, "password": request.Password}})
+		}
 	} else {
 		row, err = client.
 			Create().
 			SetEmail(request.Email).
 			SetPassword(request.Password).
 			Save(ctxSpan)
+		if err != nil {
+			return resp, pkgRest.ErrStatusConflict(w, r, a.Database.ConvertDBError("got an error", err))
+		}
+		_, err = collection.InsertOne(ctxSpan, bson.D{
+			{Key: "id", Value: row.ID},
+			{Key: "email", Value: request.Email},
+			{Key: "password", Value: request.Password},
+		})
 	}
 	if err != nil {
+		client.
+			DeleteOneID(request.ID).
+			Exec(ctxSpan)
 		return resp, pkgRest.ErrStatusConflict(w, r, a.Database.ConvertDBError("got an error", err))
 	}
 	l.Info().Interface("User", artcl).Msg("RegisterUser")
@@ -170,7 +207,8 @@ func (a *User) LoginUser(w http.ResponseWriter, r *http.Request) (resp LoginUser
 	var (
 		ctxSpan, span, l = pkgTracer.StartSpanLogTrace(r.Context(), "LoginUser")
 		request          LoginUserRequest
-		row              *ent.User
+		// row              *ent.User
+		artcl entity.User
 	)
 	defer span.End()
 
@@ -181,45 +219,45 @@ func (a *User) LoginUser(w http.ResponseWriter, r *http.Request) (resp LoginUser
 	}
 
 	// Retrieve user by email
-	client := a.Database.User
-	row, err = client.Query().Where(user.EmailEQ(request.Email)).Only(ctxSpan)
+	// client := a.Database.User
+	// row, err = client.Query().Where(user.EmailEQ(request.Email)).Only(ctxSpan)
+	database := a.Client.Database(infrastructure.Envs.CrudMongoDB.Database)
+	collection := database.Collection(infrastructure.Envs.CrudMongoDB.Collection)
+	err = collection.FindOne(ctxSpan, bson.M{"email": request.Email}).Decode(&artcl)
 	if err != nil {
-		if ent.IsNotFound(err) {
-			return resp, pkgRest.ErrUnauthorized(w, r, errors.New("invalid email or password"))
-		}
-		return resp, pkgRest.ErrInternalServerError(w, r, err)
+		return resp, pkgRest.ErrUnauthorized(w, r, errors.New("invalid email or password"))
 	}
 
 	// Check password
-	if row.Password != request.Password {
+	if artcl.Password != request.Password {
 		return resp, pkgRest.ErrUnauthorized(w, r, errors.New("invalid email or password"))
 	}
 
 	// Generate JWT token
 	claims := jwt.MapClaims{
-		"userID": row.ID,
-		"exp":    time.Now().Add(time.Hour * 24).Unix(), 
+		"userID": artcl.ID,
+		"exp":    time.Now().Add(time.Hour * 24).Unix(),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	jwtSecretKey := os.Getenv("JWT_SECRET_KEY")
 	if jwtSecretKey == "" {
-			return resp, pkgRest.ErrInternalServerError(w, r, errors.New("JWT_SECRET_KEY not set"))
+		return resp, pkgRest.ErrInternalServerError(w, r, errors.New("JWT_SECRET_KEY not set"))
 	}
 
 	signedToken, err := token.SignedString([]byte(jwtSecretKey))
-	
+
 	// Store the JWT token in a cookie
 	cookie := http.Cookie{
-			Name:     "token",
-			Value:    signedToken,
-			Expires:  time.Now().Add(time.Hour * 24),
-			HttpOnly: true,
+		Name:     "token",
+		Value:    signedToken,
+		Expires:  time.Now().Add(time.Hour * 24),
+		HttpOnly: true,
 	}
 	http.SetCookie(w, &cookie)
-	
-	l.Info().Str("UserID", fmt.Sprintf("%d", row.ID)).Msg("LoginUser")
+
+	l.Info().Str("UserID", fmt.Sprintf("%d", artcl.ID)).Msg("LoginUser")
 	return LoginUserResponse{
-		Message: fmt.Sprintf("login successful for user %d", row.ID),
+		Message: fmt.Sprintf("login successful for user %d", artcl.ID),
 	}, nil
 }
 
@@ -228,8 +266,8 @@ func (a *User) GetUser(w http.ResponseWriter, r *http.Request) (resp GetUserResp
 	var (
 		ctxSpan, span, l = pkgTracer.StartSpanLogTrace(r.Context(), "GetUser")
 		request          GetUserRequest
-		row              *ent.User
-		artcl            entity.User
+		// row              *ent.User
+		artcl entity.User
 	)
 	defer span.End()
 	request, err = pkgRest.GetBind[GetUserRequest](r)
@@ -237,17 +275,20 @@ func (a *User) GetUser(w http.ResponseWriter, r *http.Request) (resp GetUserResp
 		l.Error().Err(err).Msg("Bind GetUser")
 		return resp, pkgRest.ErrBadRequest(w, r, err)
 	}
-	row, err = a.Database.User.
-		Query().
-		Where(user.ID(request.Keys.ID)).
-		First(ctxSpan)
+	// row, err = a.Database.User.
+	// 	Query().
+	// 	Where(user.ID(request.Keys.ID)).
+	// 	First(ctxSpan)
+	database := a.Client.Database(infrastructure.Envs.CrudMongoDB.Database)
+	collection := database.Collection(infrastructure.Envs.CrudMongoDB.Collection)
+	err = collection.FindOne(ctxSpan, bson.M{"id": request.Keys.ID}).Decode(&artcl)
 	if err != nil {
 		return resp, pkgRest.ErrStatusConflict(w, r, a.Database.ConvertDBError("got an error", err))
 	}
 	l.Info().Msg("GetUserRequest")
-	if err = copier.Copy(&artcl, &row); err != nil {
-		return resp, pkgRest.ErrBadRequest(w, r, err)
-	}
+	// if err = copier.Copy(&artcl, &row); err != nil {
+	// 	return resp, pkgRest.ErrBadRequest(w, r, err)
+	// }
 	return GetUserResponse{
 		User: artcl,
 	}, nil
@@ -317,7 +358,7 @@ func (a *User) LogoutUser(w http.ResponseWriter, r *http.Request) (resp LogoutUs
 		HttpOnly: true,
 	}
 	http.SetCookie(w, &cookie)
-	
+
 	l.Info().Str("UserID", userID).Msg("LogoutUser")
 	return LogoutUserResponse{
 		Message: "logout successful",
