@@ -12,7 +12,9 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"github.com/kubuskotak/king/pkg/persist/crud/ent/application"
 	"github.com/kubuskotak/king/pkg/persist/crud/ent/article"
+	"github.com/kubuskotak/king/pkg/persist/crud/ent/index"
 	"github.com/kubuskotak/king/pkg/persist/crud/ent/user"
 	"github.com/kubuskotak/king/pkg/persist/crud/ent/ymir"
 )
@@ -75,9 +77,11 @@ var (
 func checkColumn(table, column string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
-			article.Table: article.ValidColumn,
-			user.Table:    user.ValidColumn,
-			ymir.Table:    ymir.ValidColumn,
+			application.Table: application.ValidColumn,
+			article.Table:     article.ValidColumn,
+			index.Table:       index.ValidColumn,
+			user.Table:        user.ValidColumn,
+			ymir.Table:        ymir.ValidColumn,
 		})
 	})
 	return columnCheck(table, column)

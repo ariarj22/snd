@@ -10,6 +10,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/kubuskotak/king/pkg/persist/crud/ent/application"
 	"github.com/kubuskotak/king/pkg/persist/crud/ent/predicate"
 	"github.com/kubuskotak/king/pkg/persist/crud/ent/user"
 )
@@ -39,9 +40,45 @@ func (uu *UserUpdate) SetPassword(s string) *UserUpdate {
 	return uu
 }
 
+// AddApplicationIDs adds the "applications" edge to the Application entity by IDs.
+func (uu *UserUpdate) AddApplicationIDs(ids ...string) *UserUpdate {
+	uu.mutation.AddApplicationIDs(ids...)
+	return uu
+}
+
+// AddApplications adds the "applications" edges to the Application entity.
+func (uu *UserUpdate) AddApplications(a ...*Application) *UserUpdate {
+	ids := make([]string, len(a))
+	for i := range a {
+		ids[i] = a[i].ID
+	}
+	return uu.AddApplicationIDs(ids...)
+}
+
 // Mutation returns the UserMutation object of the builder.
 func (uu *UserUpdate) Mutation() *UserMutation {
 	return uu.mutation
+}
+
+// ClearApplications clears all "applications" edges to the Application entity.
+func (uu *UserUpdate) ClearApplications() *UserUpdate {
+	uu.mutation.ClearApplications()
+	return uu
+}
+
+// RemoveApplicationIDs removes the "applications" edge to Application entities by IDs.
+func (uu *UserUpdate) RemoveApplicationIDs(ids ...string) *UserUpdate {
+	uu.mutation.RemoveApplicationIDs(ids...)
+	return uu
+}
+
+// RemoveApplications removes "applications" edges to Application entities.
+func (uu *UserUpdate) RemoveApplications(a ...*Application) *UserUpdate {
+	ids := make([]string, len(a))
+	for i := range a {
+		ids[i] = a[i].ID
+	}
+	return uu.RemoveApplicationIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -71,7 +108,20 @@ func (uu *UserUpdate) ExecX(ctx context.Context) {
 	}
 }
 
+// check runs all checks and user-defined validators on the builder.
+func (uu *UserUpdate) check() error {
+	if v, ok := uu.mutation.Password(); ok {
+		if err := user.PasswordValidator(v); err != nil {
+			return &ValidationError{Name: "password", err: fmt.Errorf(`ent: validator failed for field "User.password": %w`, err)}
+		}
+	}
+	return nil
+}
+
 func (uu *UserUpdate) sqlSave(ctx context.Context) (n int, err error) {
+	if err := uu.check(); err != nil {
+		return n, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(user.Table, user.Columns, sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt))
 	if ps := uu.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
@@ -85,6 +135,51 @@ func (uu *UserUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	}
 	if value, ok := uu.mutation.Password(); ok {
 		_spec.SetField(user.FieldPassword, field.TypeString, value)
+	}
+	if uu.mutation.ApplicationsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.ApplicationsTable,
+			Columns: []string{user.ApplicationsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(application.FieldID, field.TypeString),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uu.mutation.RemovedApplicationsIDs(); len(nodes) > 0 && !uu.mutation.ApplicationsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.ApplicationsTable,
+			Columns: []string{user.ApplicationsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(application.FieldID, field.TypeString),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uu.mutation.ApplicationsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.ApplicationsTable,
+			Columns: []string{user.ApplicationsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(application.FieldID, field.TypeString),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if n, err = sqlgraph.UpdateNodes(ctx, uu.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -118,9 +213,45 @@ func (uuo *UserUpdateOne) SetPassword(s string) *UserUpdateOne {
 	return uuo
 }
 
+// AddApplicationIDs adds the "applications" edge to the Application entity by IDs.
+func (uuo *UserUpdateOne) AddApplicationIDs(ids ...string) *UserUpdateOne {
+	uuo.mutation.AddApplicationIDs(ids...)
+	return uuo
+}
+
+// AddApplications adds the "applications" edges to the Application entity.
+func (uuo *UserUpdateOne) AddApplications(a ...*Application) *UserUpdateOne {
+	ids := make([]string, len(a))
+	for i := range a {
+		ids[i] = a[i].ID
+	}
+	return uuo.AddApplicationIDs(ids...)
+}
+
 // Mutation returns the UserMutation object of the builder.
 func (uuo *UserUpdateOne) Mutation() *UserMutation {
 	return uuo.mutation
+}
+
+// ClearApplications clears all "applications" edges to the Application entity.
+func (uuo *UserUpdateOne) ClearApplications() *UserUpdateOne {
+	uuo.mutation.ClearApplications()
+	return uuo
+}
+
+// RemoveApplicationIDs removes the "applications" edge to Application entities by IDs.
+func (uuo *UserUpdateOne) RemoveApplicationIDs(ids ...string) *UserUpdateOne {
+	uuo.mutation.RemoveApplicationIDs(ids...)
+	return uuo
+}
+
+// RemoveApplications removes "applications" edges to Application entities.
+func (uuo *UserUpdateOne) RemoveApplications(a ...*Application) *UserUpdateOne {
+	ids := make([]string, len(a))
+	for i := range a {
+		ids[i] = a[i].ID
+	}
+	return uuo.RemoveApplicationIDs(ids...)
 }
 
 // Where appends a list predicates to the UserUpdate builder.
@@ -163,7 +294,20 @@ func (uuo *UserUpdateOne) ExecX(ctx context.Context) {
 	}
 }
 
+// check runs all checks and user-defined validators on the builder.
+func (uuo *UserUpdateOne) check() error {
+	if v, ok := uuo.mutation.Password(); ok {
+		if err := user.PasswordValidator(v); err != nil {
+			return &ValidationError{Name: "password", err: fmt.Errorf(`ent: validator failed for field "User.password": %w`, err)}
+		}
+	}
+	return nil
+}
+
 func (uuo *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
+	if err := uuo.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(user.Table, user.Columns, sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt))
 	id, ok := uuo.mutation.ID()
 	if !ok {
@@ -194,6 +338,51 @@ func (uuo *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) 
 	}
 	if value, ok := uuo.mutation.Password(); ok {
 		_spec.SetField(user.FieldPassword, field.TypeString, value)
+	}
+	if uuo.mutation.ApplicationsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.ApplicationsTable,
+			Columns: []string{user.ApplicationsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(application.FieldID, field.TypeString),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uuo.mutation.RemovedApplicationsIDs(); len(nodes) > 0 && !uuo.mutation.ApplicationsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.ApplicationsTable,
+			Columns: []string{user.ApplicationsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(application.FieldID, field.TypeString),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uuo.mutation.ApplicationsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.ApplicationsTable,
+			Columns: []string{user.ApplicationsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(application.FieldID, field.TypeString),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	_node = &User{config: uuo.config}
 	_spec.Assign = _node.assignValues

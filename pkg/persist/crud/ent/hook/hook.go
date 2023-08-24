@@ -9,6 +9,18 @@ import (
 	"github.com/kubuskotak/king/pkg/persist/crud/ent"
 )
 
+// The ApplicationFunc type is an adapter to allow the use of ordinary
+// function as Application mutator.
+type ApplicationFunc func(context.Context, *ent.ApplicationMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ApplicationFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ApplicationMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ApplicationMutation", m)
+}
+
 // The ArticleFunc type is an adapter to allow the use of ordinary
 // function as Article mutator.
 type ArticleFunc func(context.Context, *ent.ArticleMutation) (ent.Value, error)
@@ -19,6 +31,18 @@ func (f ArticleFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, err
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ArticleMutation", m)
+}
+
+// The IndexFunc type is an adapter to allow the use of ordinary
+// function as Index mutator.
+type IndexFunc func(context.Context, *ent.IndexMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f IndexFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.IndexMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.IndexMutation", m)
 }
 
 // The UserFunc type is an adapter to allow the use of ordinary

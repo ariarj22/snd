@@ -9,6 +9,7 @@ import (
 
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/kubuskotak/king/pkg/persist/crud/ent/application"
 	"github.com/kubuskotak/king/pkg/persist/crud/ent/user"
 )
 
@@ -35,6 +36,21 @@ func (uc *UserCreate) SetPassword(s string) *UserCreate {
 func (uc *UserCreate) SetID(i int) *UserCreate {
 	uc.mutation.SetID(i)
 	return uc
+}
+
+// AddApplicationIDs adds the "applications" edge to the Application entity by IDs.
+func (uc *UserCreate) AddApplicationIDs(ids ...string) *UserCreate {
+	uc.mutation.AddApplicationIDs(ids...)
+	return uc
+}
+
+// AddApplications adds the "applications" edges to the Application entity.
+func (uc *UserCreate) AddApplications(a ...*Application) *UserCreate {
+	ids := make([]string, len(a))
+	for i := range a {
+		ids[i] = a[i].ID
+	}
+	return uc.AddApplicationIDs(ids...)
 }
 
 // Mutation returns the UserMutation object of the builder.
@@ -77,6 +93,11 @@ func (uc *UserCreate) check() error {
 	if _, ok := uc.mutation.Password(); !ok {
 		return &ValidationError{Name: "password", err: errors.New(`ent: missing required field "User.password"`)}
 	}
+	if v, ok := uc.mutation.Password(); ok {
+		if err := user.PasswordValidator(v); err != nil {
+			return &ValidationError{Name: "password", err: fmt.Errorf(`ent: validator failed for field "User.password": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -116,6 +137,22 @@ func (uc *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 	if value, ok := uc.mutation.Password(); ok {
 		_spec.SetField(user.FieldPassword, field.TypeString, value)
 		_node.Password = value
+	}
+	if nodes := uc.mutation.ApplicationsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.ApplicationsTable,
+			Columns: []string{user.ApplicationsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(application.FieldID, field.TypeString),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec
 }

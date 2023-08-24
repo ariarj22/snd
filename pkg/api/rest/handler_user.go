@@ -154,6 +154,7 @@ func (a *User) RegisterUser(w http.ResponseWriter, r *http.Request) (resp Regist
 	database := a.Client.Database(infrastructure.Envs.CrudMongoDB.Database)
 	collection := database.Collection(infrastructure.Envs.CrudMongoDB.Collection)
 	if request.ID > 0 {
+		// postgres
 		row, err = client.
 			UpdateOneID(request.ID).
 			SetEmail(request.Email).
@@ -162,6 +163,7 @@ func (a *User) RegisterUser(w http.ResponseWriter, r *http.Request) (resp Regist
 		if err != nil {
 			return resp, pkgRest.ErrStatusConflict(w, r, a.Database.ConvertDBError("got an error", err))
 		}
+		// mongodb
 		err = collection.FindOne(ctxSpan, bson.M{"id": request.ID}).Decode(&artcl)
 		if err != nil {
 			_, err = collection.InsertOne(ctxSpan, bson.D{
@@ -173,6 +175,7 @@ func (a *User) RegisterUser(w http.ResponseWriter, r *http.Request) (resp Regist
 			_, err = collection.UpdateOne(ctxSpan, bson.M{"id": request.ID}, bson.M{"$set": bson.M{"email": request.Email, "password": request.Password}})
 		}
 	} else {
+		// postgres
 		row, err = client.
 			Create().
 			SetEmail(request.Email).
@@ -181,6 +184,7 @@ func (a *User) RegisterUser(w http.ResponseWriter, r *http.Request) (resp Regist
 		if err != nil {
 			return resp, pkgRest.ErrStatusConflict(w, r, a.Database.ConvertDBError("got an error", err))
 		}
+		// mongodb
 		_, err = collection.InsertOne(ctxSpan, bson.D{
 			{Key: "id", Value: row.ID},
 			{Key: "email", Value: request.Email},
@@ -188,6 +192,7 @@ func (a *User) RegisterUser(w http.ResponseWriter, r *http.Request) (resp Regist
 		})
 	}
 	if err != nil {
+		// if insert mongodb error, delete record in postgres
 		client.
 			DeleteOneID(request.ID).
 			Exec(ctxSpan)

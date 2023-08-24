@@ -8,6 +8,27 @@ import (
 )
 
 var (
+	// ApplicationsColumns holds the columns for the "applications" table.
+	ApplicationsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeString, Unique: true},
+		{Name: "name", Type: field.TypeString, Unique: true},
+		{Name: "apikey", Type: field.TypeString, Unique: true},
+		{Name: "user_applications", Type: field.TypeInt, Nullable: true},
+	}
+	// ApplicationsTable holds the schema information for the "applications" table.
+	ApplicationsTable = &schema.Table{
+		Name:       "applications",
+		Columns:    ApplicationsColumns,
+		PrimaryKey: []*schema.Column{ApplicationsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "applications_users_applications",
+				Columns:    []*schema.Column{ApplicationsColumns[3]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+		},
+	}
 	// ArticlesColumns holds the columns for the "articles" table.
 	ArticlesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -22,6 +43,26 @@ var (
 		Name:       "articles",
 		Columns:    ArticlesColumns,
 		PrimaryKey: []*schema.Column{ArticlesColumns[0]},
+	}
+	// IndexesColumns holds the columns for the "indexes" table.
+	IndexesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "name", Type: field.TypeString, Unique: true},
+		{Name: "application_indexes", Type: field.TypeString, Nullable: true},
+	}
+	// IndexesTable holds the schema information for the "indexes" table.
+	IndexesTable = &schema.Table{
+		Name:       "indexes",
+		Columns:    IndexesColumns,
+		PrimaryKey: []*schema.Column{IndexesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "indexes_applications_indexes",
+				Columns:    []*schema.Column{IndexesColumns[2]},
+				RefColumns: []*schema.Column{ApplicationsColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+		},
 	}
 	// UsersColumns holds the columns for the "users" table.
 	UsersColumns = []*schema.Column{
@@ -48,11 +89,15 @@ var (
 	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
+		ApplicationsTable,
 		ArticlesTable,
+		IndexesTable,
 		UsersTable,
 		YmirsTable,
 	}
 )
 
 func init() {
+	ApplicationsTable.ForeignKeys[0].RefTable = UsersTable
+	IndexesTable.ForeignKeys[0].RefTable = ApplicationsTable
 }

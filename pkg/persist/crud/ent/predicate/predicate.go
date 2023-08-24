@@ -6,8 +6,14 @@ import (
 	"entgo.io/ent/dialect/sql"
 )
 
+// Application is the predicate function for application builders.
+type Application func(*sql.Selector)
+
 // Article is the predicate function for article builders.
 type Article func(*sql.Selector)
+
+// Index is the predicate function for index builders.
+type Index func(*sql.Selector)
 
 // User is the predicate function for user builders.
 type User func(*sql.Selector)

@@ -4,6 +4,7 @@ package user
 
 import (
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 )
 
 const (
@@ -15,8 +16,17 @@ const (
 	FieldEmail = "email"
 	// FieldPassword holds the string denoting the password field in the database.
 	FieldPassword = "password"
+	// EdgeApplications holds the string denoting the applications edge name in mutations.
+	EdgeApplications = "applications"
 	// Table holds the table name of the user in the database.
 	Table = "users"
+	// ApplicationsTable is the table that holds the applications relation/edge.
+	ApplicationsTable = "applications"
+	// ApplicationsInverseTable is the table name for the Application entity.
+	// It exists in this package in order to avoid circular dependency with the "application" package.
+	ApplicationsInverseTable = "applications"
+	// ApplicationsColumn is the table column denoting the applications relation/edge.
+	ApplicationsColumn = "user_applications"
 )
 
 // Columns holds all SQL columns for user fields.
@@ -36,6 +46,11 @@ func ValidColumn(column string) bool {
 	return false
 }
 
+var (
+	// PasswordValidator is a validator for the "password" field. It is called by the builders before save.
+	PasswordValidator func(string) error
+)
+
 // OrderOption defines the ordering options for the User queries.
 type OrderOption func(*sql.Selector)
 
@@ -52,4 +67,25 @@ func ByEmail(opts ...sql.OrderTermOption) OrderOption {
 // ByPassword orders the results by the password field.
 func ByPassword(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldPassword, opts...).ToFunc()
+}
+
+// ByApplicationsCount orders the results by applications count.
+func ByApplicationsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newApplicationsStep(), opts...)
+	}
+}
+
+// ByApplications orders the results by applications terms.
+func ByApplications(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newApplicationsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+func newApplicationsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(ApplicationsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, ApplicationsTable, ApplicationsColumn),
+	)
 }

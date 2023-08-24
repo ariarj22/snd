@@ -13,7 +13,10 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
+	"github.com/kubuskotak/king/pkg/persist/crud/ent/application"
 	"github.com/kubuskotak/king/pkg/persist/crud/ent/article"
+	"github.com/kubuskotak/king/pkg/persist/crud/ent/index"
 	"github.com/kubuskotak/king/pkg/persist/crud/ent/user"
 	"github.com/kubuskotak/king/pkg/persist/crud/ent/ymir"
 )
@@ -23,8 +26,12 @@ type Client struct {
 	config
 	// Schema is the client for creating, migrating and dropping schema.
 	Schema *migrate.Schema
+	// Application is the client for interacting with the Application builders.
+	Application *ApplicationClient
 	// Article is the client for interacting with the Article builders.
 	Article *ArticleClient
+	// Index is the client for interacting with the Index builders.
+	Index *IndexClient
 	// User is the client for interacting with the User builders.
 	User *UserClient
 	// Ymir is the client for interacting with the Ymir builders.
@@ -42,7 +49,9 @@ func NewClient(opts ...Option) *Client {
 
 func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
+	c.Application = NewApplicationClient(c.config)
 	c.Article = NewArticleClient(c.config)
+	c.Index = NewIndexClient(c.config)
 	c.User = NewUserClient(c.config)
 	c.Ymir = NewYmirClient(c.config)
 }
@@ -125,11 +134,13 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	cfg := c.config
 	cfg.driver = tx
 	return &Tx{
-		ctx:     ctx,
-		config:  cfg,
-		Article: NewArticleClient(cfg),
-		User:    NewUserClient(cfg),
-		Ymir:    NewYmirClient(cfg),
+		ctx:         ctx,
+		config:      cfg,
+		Application: NewApplicationClient(cfg),
+		Article:     NewArticleClient(cfg),
+		Index:       NewIndexClient(cfg),
+		User:        NewUserClient(cfg),
+		Ymir:        NewYmirClient(cfg),
 	}, nil
 }
 
@@ -147,18 +158,20 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	cfg := c.config
 	cfg.driver = &txDriver{tx: tx, drv: c.driver}
 	return &Tx{
-		ctx:     ctx,
-		config:  cfg,
-		Article: NewArticleClient(cfg),
-		User:    NewUserClient(cfg),
-		Ymir:    NewYmirClient(cfg),
+		ctx:         ctx,
+		config:      cfg,
+		Application: NewApplicationClient(cfg),
+		Article:     NewArticleClient(cfg),
+		Index:       NewIndexClient(cfg),
+		User:        NewUserClient(cfg),
+		Ymir:        NewYmirClient(cfg),
 	}, nil
 }
 
 // Debug returns a new debug-client. It's used to get verbose logging on specific operations.
 //
 //	client.Debug().
-//		Article.
+//		Application.
 //		Query().
 //		Count(ctx)
 func (c *Client) Debug() *Client {
@@ -180,7 +193,9 @@ func (c *Client) Close() error {
 // Use adds the mutation hooks to all the entity clients.
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
+	c.Application.Use(hooks...)
 	c.Article.Use(hooks...)
+	c.Index.Use(hooks...)
 	c.User.Use(hooks...)
 	c.Ymir.Use(hooks...)
 }
@@ -188,7 +203,9 @@ func (c *Client) Use(hooks ...Hook) {
 // Intercept adds the query interceptors to all the entity clients.
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
+	c.Application.Intercept(interceptors...)
 	c.Article.Intercept(interceptors...)
+	c.Index.Intercept(interceptors...)
 	c.User.Intercept(interceptors...)
 	c.Ymir.Intercept(interceptors...)
 }
@@ -196,14 +213,168 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 // Mutate implements the ent.Mutator interface.
 func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 	switch m := m.(type) {
+	case *ApplicationMutation:
+		return c.Application.mutate(ctx, m)
 	case *ArticleMutation:
 		return c.Article.mutate(ctx, m)
+	case *IndexMutation:
+		return c.Index.mutate(ctx, m)
 	case *UserMutation:
 		return c.User.mutate(ctx, m)
 	case *YmirMutation:
 		return c.Ymir.mutate(ctx, m)
 	default:
 		return nil, fmt.Errorf("ent: unknown mutation type %T", m)
+	}
+}
+
+// ApplicationClient is a client for the Application schema.
+type ApplicationClient struct {
+	config
+}
+
+// NewApplicationClient returns a client for the Application from the given config.
+func NewApplicationClient(c config) *ApplicationClient {
+	return &ApplicationClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `application.Hooks(f(g(h())))`.
+func (c *ApplicationClient) Use(hooks ...Hook) {
+	c.hooks.Application = append(c.hooks.Application, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `application.Intercept(f(g(h())))`.
+func (c *ApplicationClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Application = append(c.inters.Application, interceptors...)
+}
+
+// Create returns a builder for creating a Application entity.
+func (c *ApplicationClient) Create() *ApplicationCreate {
+	mutation := newApplicationMutation(c.config, OpCreate)
+	return &ApplicationCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Application entities.
+func (c *ApplicationClient) CreateBulk(builders ...*ApplicationCreate) *ApplicationCreateBulk {
+	return &ApplicationCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Application.
+func (c *ApplicationClient) Update() *ApplicationUpdate {
+	mutation := newApplicationMutation(c.config, OpUpdate)
+	return &ApplicationUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ApplicationClient) UpdateOne(a *Application) *ApplicationUpdateOne {
+	mutation := newApplicationMutation(c.config, OpUpdateOne, withApplication(a))
+	return &ApplicationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ApplicationClient) UpdateOneID(id string) *ApplicationUpdateOne {
+	mutation := newApplicationMutation(c.config, OpUpdateOne, withApplicationID(id))
+	return &ApplicationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Application.
+func (c *ApplicationClient) Delete() *ApplicationDelete {
+	mutation := newApplicationMutation(c.config, OpDelete)
+	return &ApplicationDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ApplicationClient) DeleteOne(a *Application) *ApplicationDeleteOne {
+	return c.DeleteOneID(a.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ApplicationClient) DeleteOneID(id string) *ApplicationDeleteOne {
+	builder := c.Delete().Where(application.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ApplicationDeleteOne{builder}
+}
+
+// Query returns a query builder for Application.
+func (c *ApplicationClient) Query() *ApplicationQuery {
+	return &ApplicationQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeApplication},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a Application entity by its id.
+func (c *ApplicationClient) Get(ctx context.Context, id string) (*Application, error) {
+	return c.Query().Where(application.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ApplicationClient) GetX(ctx context.Context, id string) *Application {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryUser queries the user edge of a Application.
+func (c *ApplicationClient) QueryUser(a *Application) *UserQuery {
+	query := (&UserClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := a.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(application.Table, application.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, application.UserTable, application.UserColumn),
+		)
+		fromV = sqlgraph.Neighbors(a.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryIndexes queries the indexes edge of a Application.
+func (c *ApplicationClient) QueryIndexes(a *Application) *IndexQuery {
+	query := (&IndexClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := a.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(application.Table, application.FieldID, id),
+			sqlgraph.To(index.Table, index.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, application.IndexesTable, application.IndexesColumn),
+		)
+		fromV = sqlgraph.Neighbors(a.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *ApplicationClient) Hooks() []Hook {
+	return c.hooks.Application
+}
+
+// Interceptors returns the client interceptors.
+func (c *ApplicationClient) Interceptors() []Interceptor {
+	return c.inters.Application
+}
+
+func (c *ApplicationClient) mutate(ctx context.Context, m *ApplicationMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ApplicationCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ApplicationUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ApplicationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ApplicationDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown Application mutation op: %q", m.Op())
 	}
 }
 
@@ -325,6 +496,140 @@ func (c *ArticleClient) mutate(ctx context.Context, m *ArticleMutation) (Value, 
 	}
 }
 
+// IndexClient is a client for the Index schema.
+type IndexClient struct {
+	config
+}
+
+// NewIndexClient returns a client for the Index from the given config.
+func NewIndexClient(c config) *IndexClient {
+	return &IndexClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `index.Hooks(f(g(h())))`.
+func (c *IndexClient) Use(hooks ...Hook) {
+	c.hooks.Index = append(c.hooks.Index, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `index.Intercept(f(g(h())))`.
+func (c *IndexClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Index = append(c.inters.Index, interceptors...)
+}
+
+// Create returns a builder for creating a Index entity.
+func (c *IndexClient) Create() *IndexCreate {
+	mutation := newIndexMutation(c.config, OpCreate)
+	return &IndexCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Index entities.
+func (c *IndexClient) CreateBulk(builders ...*IndexCreate) *IndexCreateBulk {
+	return &IndexCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Index.
+func (c *IndexClient) Update() *IndexUpdate {
+	mutation := newIndexMutation(c.config, OpUpdate)
+	return &IndexUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *IndexClient) UpdateOne(i *Index) *IndexUpdateOne {
+	mutation := newIndexMutation(c.config, OpUpdateOne, withIndex(i))
+	return &IndexUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *IndexClient) UpdateOneID(id int) *IndexUpdateOne {
+	mutation := newIndexMutation(c.config, OpUpdateOne, withIndexID(id))
+	return &IndexUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Index.
+func (c *IndexClient) Delete() *IndexDelete {
+	mutation := newIndexMutation(c.config, OpDelete)
+	return &IndexDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *IndexClient) DeleteOne(i *Index) *IndexDeleteOne {
+	return c.DeleteOneID(i.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *IndexClient) DeleteOneID(id int) *IndexDeleteOne {
+	builder := c.Delete().Where(index.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &IndexDeleteOne{builder}
+}
+
+// Query returns a query builder for Index.
+func (c *IndexClient) Query() *IndexQuery {
+	return &IndexQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeIndex},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a Index entity by its id.
+func (c *IndexClient) Get(ctx context.Context, id int) (*Index, error) {
+	return c.Query().Where(index.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *IndexClient) GetX(ctx context.Context, id int) *Index {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryApplication queries the application edge of a Index.
+func (c *IndexClient) QueryApplication(i *Index) *ApplicationQuery {
+	query := (&ApplicationClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := i.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(index.Table, index.FieldID, id),
+			sqlgraph.To(application.Table, application.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, index.ApplicationTable, index.ApplicationColumn),
+		)
+		fromV = sqlgraph.Neighbors(i.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *IndexClient) Hooks() []Hook {
+	return c.hooks.Index
+}
+
+// Interceptors returns the client interceptors.
+func (c *IndexClient) Interceptors() []Interceptor {
+	return c.inters.Index
+}
+
+func (c *IndexClient) mutate(ctx context.Context, m *IndexMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&IndexCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&IndexUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&IndexUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&IndexDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown Index mutation op: %q", m.Op())
+	}
+}
+
 // UserClient is a client for the User schema.
 type UserClient struct {
 	config
@@ -416,6 +721,22 @@ func (c *UserClient) GetX(ctx context.Context, id int) *User {
 		panic(err)
 	}
 	return obj
+}
+
+// QueryApplications queries the applications edge of a User.
+func (c *UserClient) QueryApplications(u *User) *ApplicationQuery {
+	query := (&ApplicationClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := u.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(application.Table, application.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.ApplicationsTable, user.ApplicationsColumn),
+		)
+		fromV = sqlgraph.Neighbors(u.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
 }
 
 // Hooks returns the client hooks.
@@ -564,9 +885,9 @@ func (c *YmirClient) mutate(ctx context.Context, m *YmirMutation) (Value, error)
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		Article, User, Ymir []ent.Hook
+		Application, Article, Index, User, Ymir []ent.Hook
 	}
 	inters struct {
-		Article, User, Ymir []ent.Interceptor
+		Application, Article, Index, User, Ymir []ent.Interceptor
 	}
 )

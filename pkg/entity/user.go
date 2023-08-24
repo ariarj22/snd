@@ -4,5 +4,5 @@ package entity
 type User struct {
 	ID       int    `json:"id,omitempty"`
 	Email    string `json:"email,omitempty" validate:"required,email"`
-	Password string `json:"password,omitempty" validate:"required,min=8"`
+	Password string `json:"password,omitempty" validate:"required"`
 }

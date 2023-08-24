@@ -4,6 +4,7 @@ package ent
 
 import (
 	"github.com/kubuskotak/king/pkg/persist/crud/ent/article"
+	"github.com/kubuskotak/king/pkg/persist/crud/ent/user"
 	"github.com/kubuskotak/king/pkg/persist/crud/ent/ymir"
 	"github.com/kubuskotak/king/pkg/persist/crud/schema"
 )
@@ -36,6 +37,12 @@ func init() {
 	articleDescSlug := articleFields[3].Descriptor()
 	// article.SlugValidator is a validator for the "slug" field. It is called by the builders before save.
 	article.SlugValidator = articleDescSlug.Validators[0].(func(string) error)
+	userFields := schema.User{}.Fields()
+	_ = userFields
+	// userDescPassword is the schema descriptor for password field.
+	userDescPassword := userFields[2].Descriptor()
+	// user.PasswordValidator is a validator for the "password" field. It is called by the builders before save.
+	user.PasswordValidator = userDescPassword.Validators[0].(func(string) error)
 	ymirFields := schema.Ymir{}.Fields()
 	_ = ymirFields
 	// ymirDescVersion is the schema descriptor for version field.
