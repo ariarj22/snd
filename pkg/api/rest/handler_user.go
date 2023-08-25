@@ -73,7 +73,7 @@ func NewUser(opts ...UserOption) *User {
 // Register is endpoint group for handler.
 func (a *User) Register(router chi.Router) {
 	router.Route("/", func(r chi.Router) {
-		r.Get("/", pkgRest.HandlerAdapter[ListUsersRequest](a.ListUsers).JSON)
+		r.Get("/users", pkgRest.HandlerAdapter[ListUsersRequest](a.ListUsers).JSON)
 		r.Post("/register", pkgRest.HandlerAdapter[RegisterUserRequest](a.RegisterUser).JSON)
 		r.Post("/login", pkgRest.HandlerAdapter[LoginUserRequest](a.LoginUser).JSON)
 		r.Post("/logout", pkgRest.HandlerAdapter[LogoutUserRequest](a.LogoutUser).JSON)

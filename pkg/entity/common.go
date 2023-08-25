@@ -16,3 +16,7 @@ type Filter struct {
 type Keys struct {
 	ID int `validate:"gt=0,required"`
 }
+
+type KeysString struct {
+	ID string `validate:"required"`
+}
