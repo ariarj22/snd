@@ -22,6 +22,7 @@ import (
 	"github.com/kubuskotak/king/pkg/infrastructure"
 	"github.com/kubuskotak/king/pkg/persist/crud"
 	"github.com/kubuskotak/king/pkg/persist/crud/ent"
+	"github.com/kubuskotak/king/pkg/persist/crud/ent/application"
 )
 
 // UserOption is a struct holding the handler options.
@@ -311,17 +312,32 @@ func (a *User) DeleteUser(w http.ResponseWriter, r *http.Request) (resp DeleteUs
 		return resp, pkgRest.ErrBadRequest(w, r, err)
 	}
 	var client = a.Database.User
+	database := a.Client.Database(infrastructure.Envs.CrudMongoDB.Database)
+	collection := database.Collection(infrastructure.Envs.CrudMongoDB.Collection)
 	if request.ID < 1 {
 		return resp, pkgRest.ErrStatusConflict(w, r, errors.New("record id is"))
 	}
+	// postgres
 	err = client.
 		DeleteOneID(request.ID).
 		Exec(ctxSpan)
 	if err != nil {
 		return resp, pkgRest.ErrStatusConflict(w, r, a.Database.ConvertDBError("record", err))
 	}
+	_, err = a.Database.Application.Delete().
+		Where(application.Not(application.HasUser())).
+		Exec(ctxSpan)
+	if err != nil {
+		return resp, pkgRest.ErrStatusConflict(w, r, a.Database.ConvertDBError("record", err))
+	}
+
+	// mongodb
+	_, err = collection.DeleteOne(ctxSpan, bson.M{"id": request.ID})
+	if err != nil {
+		return resp, pkgRest.ErrStatusConflict(w, r, a.Database.ConvertDBError("record", err))
+	}
 	return DeleteUserResponse{
-		Message: fmt.Sprintf("record deleted successfully: %d", request.ID),
+		Message: fmt.Sprintf("user deleted successfully: %d", request.ID),
 	}, nil
 }
 
