@@ -22,7 +22,6 @@ import (
 	"github.com/kubuskotak/king/pkg/infrastructure"
 	"github.com/kubuskotak/king/pkg/persist/crud"
 	"github.com/kubuskotak/king/pkg/persist/crud/ent"
-	"github.com/kubuskotak/king/pkg/persist/crud/ent/user"
 )
 
 // UserOption is a struct holding the handler options.
@@ -97,41 +96,41 @@ func (a *User) ListUsers(w http.ResponseWriter, r *http.Request) (resp ListUsers
 		l.Error().Err(err).Msg("Bind ListUsers")
 		return resp, pkgRest.ErrBadRequest(w, r, err)
 	}
-	var (
-		total  int
-		query  = a.Database.User.Query()
-		users  []*ent.User
-		offset = (request.Page - 1) * request.Limit
-		rows   = make([]*entity.User, len(users))
-	)
-	// pagination
-	total, err = query.Count(ctxSpan)
-	if err != nil {
-		return resp, pkgRest.ErrBadRequest(w, r, err)
-	}
-	pkgRest.Paging(r, pkgRest.Pagination{
-		Page:  request.Page,
-		Limit: request.Limit,
-		Total: total,
-	})
-	users, err = query.
-		Limit(request.Limit).
-		Offset(offset).
-		Order(ent.Asc(user.FieldID)).
-		Where(user.Or(
-			user.EmailContains(request.Query),
-		)).
-		All(ctxSpan)
+
+	// users, err = query.
+	// 	Limit(request.Limit).
+	// 	Offset(offset).
+	// 	Order(ent.Asc(user.FieldID)).
+	// 	Where(user.Or(
+	// 		user.EmailContains(request.Query),
+	// 	)).
+	// 	All(ctxSpan)
+
+	database := a.Client.Database(infrastructure.Envs.CrudMongoDB.Database)
+	collection := database.Collection(infrastructure.Envs.CrudMongoDB.Collection)
+	cursor, err := collection.Find(ctxSpan, bson.D{{}})
+
 	if err != nil {
 		return resp, pkgRest.ErrStatusConflict(w, r, a.Database.ConvertDBError("got an error", err))
 	}
-	if err = copier.Copy(&rows, &users); err != nil {
-		return resp, pkgRest.ErrBadRequest(w, r, err)
+	// if err = copier.Copy(&rows, &users); err != nil {
+	// 	return resp, pkgRest.ErrBadRequest(w, r, err)
+	// }
+
+	var results []*entity.User
+	if err = cursor.All(ctxSpan, &results); err != nil {
+		return resp, pkgRest.ErrStatusConflict(w, r, a.Database.ConvertDBError("got an error", err))
 	}
+	// pagination
+	pkgRest.Paging(r, pkgRest.Pagination{
+		Page:  request.Page,
+		Limit: request.Limit,
+		Total: len(results),
+	})
 
 	l.Info().Msg("ListUsers")
 	return ListUsersResponse{
-		Users: rows,
+		Users: results,
 	}, nil
 }
 
@@ -194,7 +193,7 @@ func (a *User) RegisterUser(w http.ResponseWriter, r *http.Request) (resp Regist
 	if err != nil {
 		// if insert mongodb error, delete record in postgres
 		client.
-			DeleteOneID(request.ID).
+			DeleteOneID(row.ID).
 			Exec(ctxSpan)
 		return resp, pkgRest.ErrStatusConflict(w, r, a.Database.ConvertDBError("got an error", err))
 	}
