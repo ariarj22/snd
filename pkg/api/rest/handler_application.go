@@ -47,6 +47,7 @@ func WithApplicationMongoDB(adapter *adapters.CrudMongoDB) ApplicationOption {
 	}
 }
 
+var SelectedApplicationID string
 // NewApplication creates a new application handler instance.
 //
 //	var applicationHandler = rest.NewApplication()
@@ -388,6 +389,9 @@ func (a *Application) GetApplication(w http.ResponseWriter, r *http.Request) (re
 	// if err = copier.Copy(&artcl, &row); err != nil {
 	// 	return resp, pkgRest.ErrBadRequest(w, r, err)
 	// }
+
+	// store selected application ID
+	SelectedApplicationID = artcl.ID
 
 	// add apikey
 	// artcl.ApiKey = row.Apikey

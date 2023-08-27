@@ -174,6 +174,9 @@ func (r *rootOptions) runServer(_ *cobra.Command, _ []string) error {
 				rest.WithApplicationDatabase(adaptor.CrudPostgres),
 				rest.WithApplicationMongoDB(adaptor.CrudMongoDB),
 			).Register(c)
+			rest.NewIndex(
+				rest.WithIndexDatabase(adaptor.CrudPostgres),
+			).Register(c)
 			c.Mount("/api", c)
 			return c
 		},
