@@ -47,6 +47,8 @@ func WithIndexMongoDB(adapter *adapters.CrudMongoDB) IndexOption {
 	}
 }
 
+var SelectedIndexID int
+
 // NewIndex creates a new index handler instance.
 //
 //	var indexHandler = rest.NewIndex()
@@ -389,6 +391,10 @@ func (h *Index) GetIndex(w http.ResponseWriter, r *http.Request) (resp GetIndexR
 	// }
 
 	// artcl.ApplicationID = SelectedApplicationID
+
+	// store selected index id
+	SelectedIndexID = artcl.ID
+
 	return GetIndexResponse{
 		Index: artcl,
 	}, nil
