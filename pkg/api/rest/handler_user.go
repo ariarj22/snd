@@ -23,6 +23,7 @@ import (
 	"github.com/kubuskotak/king/pkg/persist/crud"
 	"github.com/kubuskotak/king/pkg/persist/crud/ent"
 	"github.com/kubuskotak/king/pkg/persist/crud/ent/application"
+	"github.com/kubuskotak/king/pkg/persist/crud/ent/index"
 )
 
 // UserOption is a struct holding the handler options.
@@ -329,6 +330,12 @@ func (a *User) DeleteUser(w http.ResponseWriter, r *http.Request) (resp DeleteUs
 		Exec(ctxSpan)
 	if err != nil {
 		return resp, pkgRest.ErrStatusConflict(w, r, a.Database.ConvertDBError("record", err))
+	}
+	_, err = a.Database.Index.Delete().
+		Where(index.Not(index.HasApplication())).
+		Exec(ctxSpan)
+	if err != nil {
+		return resp, pkgRest.ErrStatusConflict(w, r, a.Database.ConvertDBError("got an error", err))
 	}
 
 	// mongodb

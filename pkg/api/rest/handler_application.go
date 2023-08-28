@@ -22,6 +22,7 @@ import (
 	"github.com/kubuskotak/king/pkg/infrastructure"
 	"github.com/kubuskotak/king/pkg/persist/crud"
 	"github.com/kubuskotak/king/pkg/persist/crud/ent"
+	"github.com/kubuskotak/king/pkg/persist/crud/ent/index"
 )
 
 // ApplicationOption is a struct holding the handler options.
@@ -48,6 +49,7 @@ func WithApplicationMongoDB(adapter *adapters.CrudMongoDB) ApplicationOption {
 }
 
 var SelectedApplicationID string
+
 // NewApplication creates a new application handler instance.
 //
 //	var applicationHandler = rest.NewApplication()
@@ -353,8 +355,8 @@ func (a *Application) GetApplication(w http.ResponseWriter, r *http.Request) (re
 	database := a.Client.Database(infrastructure.Envs.CrudMongoDB.Database)
 	collection := database.Collection(infrastructure.Envs.CrudMongoDB.Collection)
 	filter := bson.M{
-		"id":              int(userID), // Replace with the document's _id
-		"applications.id": request.ID,  // Replace with the desired application ID
+		"id":              int(userID),
+		"applications.id": request.ID,
 	}
 	pipeline := bson.A{
 		bson.M{"$match": filter},
@@ -451,9 +453,16 @@ func (a *Application) DeleteApplication(w http.ResponseWriter, r *http.Request) 
 	if err != nil {
 		return resp, pkgRest.ErrStatusConflict(w, r, a.Database.ConvertDBError("got an error", err))
 	}
+	_, err = a.Database.Index.Delete().
+		Where(index.Not(index.HasApplication())).
+		Exec(ctxSpan)
+	if err != nil {
+		return resp, pkgRest.ErrStatusConflict(w, r, a.Database.ConvertDBError("got an error", err))
+	}
+
 	// mongodb
 	filter := bson.M{
-		"id": int(userID), // Replace with the document's _id
+		"id": int(userID),
 	}
 	update := bson.M{
 		"$pull": bson.M{
