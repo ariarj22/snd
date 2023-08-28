@@ -1,6 +1,8 @@
 package rest
 
-import "github.com/kubuskotak/king/pkg/entity"
+import (
+	"github.com/kubuskotak/king/pkg/entity"
+)
 
 // ListDocumentsRequest Get all documents request.
 type ListDocumentsRequest struct {
@@ -10,11 +12,25 @@ type ListDocumentsRequest struct {
 
 // ListDocumentsResponse Get all documents response.
 type ListDocumentsResponse struct {
-	Documents []map[string]interface{}
+	Documents []map[string]interface{} `json:"documents,omitempty" bson:"documents,omitempty"`
 }
 
 // AddDocumentRequest Store document request.
-type AddDocumentRequest map[string]interface{}
+type AddDocumentRequest struct {
+	Data map[string]interface{} `json:"data,omitempty" bson:"data,omitempty"`
+}
 
 // AddDocumentResponse Store document response.
-type AddDocumentResponse map[string]interface{}
+type AddDocumentResponse struct {
+	Data map[string]interface{} `json:"data,omitempty" bson:"data,omitempty"`
+}
+
+// DeleteDocumentRequest Remove an document request.
+type DeleteDocumentRequest struct {
+	entity.KeysString
+}
+
+// DeleteDocumentResponse Remove an document response.
+type DeleteDocumentResponse struct {
+	Message string
+}
