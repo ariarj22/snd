@@ -1,120 +1,72 @@
-## king
+# snd
 
-> new version ymir implement.
+## Table of Contents
 
-[![forthebadge](https://forthebadge.com/images/badges/made-with-go.svg)](https://forthebadge.com) [![forthebadge](https://forthebadge.com/images/badges/built-with-love.svg)](https://forthebadge.com)
+- [About](#about)
+- [Installation](#installation)
+- [Usage](#usage)
+
+## About <a name = "about"></a>
+
+A simple API made using Go, and combining both SQL and NoSQL database.
+
+Created based on [this repository](https://github.com/kubuskotak/king).
+
+## Installation <a name = "installation"></a>
 
 ### Prerequisites
 
 - Go 1.19+
+- PostgreSQL and MongoDB Server
 - Docker (Developed with version 20.+)
 - [Taskfile](https://taskfile.dev/) Task runner or Build tool.
 - [golangci](https://golangci-lint.run/usage/install/) golang linter.
 - [entgo](https://entgo.io/) ORM adapter with sql engine, mysql, postgresql and sqlite.
 - For Changelog using [git-chglog](https://github.com/git-chglog/git-chglog)
 
-#### Create Config File
+### Installing
 
-Create an env file development by copying the given example.
+1. Create .env file based on [.env.defaultexample](https://github.com/ariarj22/snd/blob/main/.env.defaultexample)
+2. Create PostgreSQL and MongoDB server according to the information in .env file
+3. Run PostgreSQL and MongoDB server
+4. Run the application
 
 ```
-$ cp .env.defaultexample .env
+task dev
 ```
 
-### Developer Guide
+## Usage <a name = "usage"></a>
 
-#### General Rules
+The API has several endpoints to handle specific tasks or data requests within the application:
 
-- We use conventional commits to deal with git commits: https://www.conventionalcommits.org
+### User Endpoint
 
-  - Use `feat: commit message` to do git commit related to feature.
-  - Use `refactor: commit message` to do git commit related to code refactorings.
-  - Use `fix: commit message` to do git commit related to bugfix.
-  - Use `test: commit message` to do git commit related to test files.
-  - Use `docs: commit message` to do git commit related to documentations (including README.md files).
-  - Use `style: commit message` to do git commit related to code style.
+- GET /users, display all users.
+- POST /register, register a user.
+- POST /login, login a user.
+- POST /logout, logout a logged in user.
+- GET /:id, display a user based on id.
+- DELETE /:id, delete a user based on id.
 
-- Use git-chglog https://github.com/git-chglog/git-chglog to generate changelog (CHANGELOG.md) before merging to release
-  branch.
+### Application Endpoint
 
-#### Branching Strategy
+- GET /apps, display all applications.
+- POST /apps, create new application.
+- GET /apps/:id, display an application based on id.
+- PUT /apps/:id, edit an application based on id.
+- DELETE /apps/:id, delete an application based on id.
 
-- Keep your branch strategy simple. Build your strategy from these three concepts:
-  - Use feature branches for all new features and bug fixes.
-  - Merge feature branches into the main branch using pull requests.
-  - Keep a high quality, up-to-date main branch.
+### Index Endpoint
 
-#### Use feature branches for your work
+- GET /apps/indexes, display all indexes from an application.
+- POST /apps/indexes, create new index.
+- GET /apps/indexes/:id, display an index based on id.
+- PUT /apps/indexes/:id, edit an index based on id.
+- DELETE /apps/indexes/:id, delete an index based on id.
 
-Develop your features and fix bugs in feature branches based off your main branch. These branches are also known as
-topic branches. Feature branches isolate work in progress from the completed work in the main branch. Git branches are
-inexpensive to create and maintain. Even small fixes and changes should have their own feature branch.
+### Document Endpoint
 
-<p align="left"><img src="./featurebranching.png" width="360"></p>
-
-#### Name your feature branches by convention
-
-- Use a consistent naming convention for your feature branches to identify the work done in the branch. You can also
-  include other information in the branch name, such as who created the branch.
-
-- Some suggestions for naming your feature branches:
-  - users/username/description
-  - users/username/workitem
-  - bugfix/description
-  - feature/feature-name
-  - feature/feature-area/feature-name
-  - hotfix/description
-
-#### Use release branches
-
-- Create a release branch from the main branch when you get close to your release or other milestone, such as the end of
-  a sprint. Give this branch a clear name associating it with the release, for example release/20.
-- Create branches to fix bugs from the release branch and merge them back into the release branch in a pull request
-
-<p align="left"><img src="./releasebranching_release.png" width="360"></p>
-
-### Installing and Development
-
-### Development run
-
-```bash
-$ task dev
-```
-
-### Running the tests
-
-#### Unit Testing
-
-```bash
-$ task test
-```
-
-#### Code Linter
-
-```bash
-$ task lint
-```
-
-### Deployment
-
-### Built With
-
-- [chi](https://github.com/go-chi/chi) lightweight, idiomatic and composable router for building Go HTTP services.
-- [ent.](https://entgo.io/) An entity framework for Go,
-- [openTelemetry](https://opentelemetry.io/) High-quality, ubiquitous, and portable telemetry to enable effective
-  observability.
-- [zerolog](https://github.com/rs/zerolog) Zero Allocation JSON Logger.
-
-### Authors
-
-- _Nanang Suryadi_ - Creator and Initial work - [@Suryakencana07](https://github.com/suryakencana007)
-
-See also the list of [maintainer](MAINTAINER) who participated in this project.
-
-### Contributing
-
-See also the guide to [contributing](CONTRIBUTING).
-
-### License
-
-This project under the Apache License - see the [LICENSE](LICENSE) file for details.
+- GET /apps/indexes/document, display all documents from an index.
+- POST /apps/indexes/document, create new document.
+- PUT /apps/indexes/document/:id, edit a document based on id.
+- DELETE /apps/indexes/document/:id, delete a document based on id.
